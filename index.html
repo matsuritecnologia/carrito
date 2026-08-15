@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Remoto MQTT Carrito</title>
+    <!-- Librería MQTT por WebSockets -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            background: #121212; 
+            color: white; 
+            margin: 0;
+            padding-top: 20px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        h2 { margin-bottom: 5px; }
+        .grid { display: inline-grid; grid-template-columns: repeat(3, 100px); gap: 15px; margin-top: 20px; }
+        button { 
+            width: 100px; 
+            height: 100px; 
+            font-size: 28px; 
+            font-weight: bold; 
+            border: none; 
+            border-radius: 18px; 
+            background: #007bff; 
+            color: white; 
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        button:active { background: #0056b3; transform: scale(0.95); }
+        .stop { background: #dc3545; }
+        .empty { visibility: hidden; }
+        .status { margin-top: 20px; font-size: 16px; font-weight: bold; }
+        .online { color: #28a745; }
+        .offline { color: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <h2>Control Remoto Carrito</h2>
+    <div id="estado" class="status offline">Estado: Desconectado del Broker</div>
+
+    <div class="grid">
+        <div class="empty"></div>
+        <button onclick="enviarMQTT('adelante')">▲</button>
+        <div class="empty"></div>
+
+        <button onclick="enviarMQTT('izquierda')">◄</button>
+        <button class="stop" onclick="enviarMQTT('parar')">■</button>
+        <button onclick="enviarMQTT('derecha')">►</button>
+
+        <div class="empty"></div>
+        <button onclick="enviarMQTT('atras')">▼</button>
+        <div class="empty"></div>
+    </div>
+
+    <script>
+        // Tópico MQTT (Debe ser idéntico en el código de tu Arduino)
+        const topic = "carrito/control/nelson123";
+        
+        // Cliente MQTT conectándose por WebSockets seguro (WSS puerto 8884)
+        const client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "web_client_" + parseInt(Math.random() * 1000, 10));
+
+        client.onConnectionLost = function(responseObject) {
+            document.getElementById('estado').innerText = "Estado: Conexión perdida";
+            document.getElementById('estado').className = "status offline";
+        };
+
+        client.connect({
+            useSSL: true,
+            onSuccess: function() {
+                document.getElementById('estado').innerText = "Estado: Conectado a HiveMQ (Online)";
+                document.getElementById('estado').className = "status online";
+            },
+            onFailure: function(err) {
+                document.getElementById('estado').innerText = "Error de conexión: " + err.errorMessage;
+            }
+        });
+
+        function enviarMQTT(comando) {
+            if (client.isConnected()) {
+                const message = new Paho.MQTT.Message(comando);
+                message.destinationName = topic;
+                client.send(message);
+            }
+        }
+
+        // Evento de teclas (para PC)
+        document.addEventListener('keydown', function(e) {
+            switch (e.key) {
+                case "ArrowUp": enviarMQTT('adelante'); break;
+                case "ArrowDown": enviarMQTT('atras'); break;
+                case "ArrowLeft": enviarMQTT('izquierda'); break;
+                case "ArrowRight": enviarMQTT('derecha'); break;
+                case " ": enviarMQTT('parar'); break;
+            }
+        });
+    </script>
+</body>
+</html>
